@@ -67,29 +67,33 @@ async def send_signals(context: ContextTypes.DEFAULT_TYPE):
     for user_id in list(subscribers):
         try:
             await context.bot.send_message(chat_id=user_id, text=signal)
-        except:
+        except Exception as e:
             subscribers.discard(user_id)
     save_subscribers()
+    print(f"✅ تم إرسال الإشارة إلى {len(subscribers)} مشترك")
 
-async def main():
+async def post_init(application: Application) -> None:
+    await application.bot.set_my_commands([
+        ("start", "الاشتراك في الإشارات"),
+        ("stop", "إيقاف الإشارات"),
+        ("signal", "إرسال إشارة الآن"),
+    ])
+
+if __name__ == "__main__":
     if not TELEGRAM_BOT_TOKEN:
-        print("❌ خطأ: لم يتم تعيين TELEGRAM_BOT_TOKEN")
-        return
+        print("❌ خطأ: TELEGRAM_BOT_TOKEN غير معرّف")
+        exit(1)
     
     load_subscribers()
     print(f"✅ تم تحميل {len(subscribers)} مشترك")
     
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("signal", signal_command))
     
-    app.job_queue.run_repeating(send_signals, interval=300, first=10)
+    app.job_queue.run_repeating(send_signals, interval=300)
     
     print("🤖 البوت جاهز ويستقبل الأوامر...")
-    await app.run_polling()
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    app.run_polling()
