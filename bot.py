@@ -1,6 +1,7 @@
 import random
 import os
 import json
+import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -17,8 +18,6 @@ def load_subscribers():
                 subscribers = set(data) if data else set()
         except:
             subscribers = set()
-    else:
-        subscribers = set()
 
 def save_subscribers():
     with open(SUBSCRIBERS_FILE, 'w') as f:
@@ -67,27 +66,20 @@ async def send_signals(context: ContextTypes.DEFAULT_TYPE):
     for user_id in list(subscribers):
         try:
             await context.bot.send_message(chat_id=user_id, text=signal)
-        except Exception as e:
+        except:
             subscribers.discard(user_id)
     save_subscribers()
     print(f"✅ تم إرسال الإشارة إلى {len(subscribers)} مشترك")
 
-async def post_init(application: Application) -> None:
-    await application.bot.set_my_commands([
-        ("start", "الاشتراك في الإشارات"),
-        ("stop", "إيقاف الإشارات"),
-        ("signal", "إرسال إشارة الآن"),
-    ])
-
-if __name__ == "__main__":
+async def main():
     if not TELEGRAM_BOT_TOKEN:
         print("❌ خطأ: TELEGRAM_BOT_TOKEN غير معرّف")
-        exit(1)
+        return
     
     load_subscribers()
     print(f"✅ تم تحميل {len(subscribers)} مشترك")
     
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop))
@@ -96,4 +88,7 @@ if __name__ == "__main__":
     app.job_queue.run_repeating(send_signals, interval=300)
     
     print("🤖 البوت جاهز ويستقبل الأوامر...")
-    app.run_polling()
+    await app.run_polling()
+
+if __name__ == "__main__":
+    asyncio.run(main())
